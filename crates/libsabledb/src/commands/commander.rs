@@ -101,6 +101,7 @@ pub enum ValkeyCommandName {
     Expire,
     Keys,
     Scan,
+    Type,
     // Hash commands
     Hset,
     Hget,
@@ -836,6 +837,12 @@ impl Default for CommandsManager {
                     .with_last_key(0)
                     .with_first_key(0)
                     .with_step(0),
+            ),
+            (
+                "type",
+                CommandMetadata::new(ValkeyCommandName::Type)
+                    .read_only()
+                    .with_arity(2),
             ),
             // Hash commands
             (

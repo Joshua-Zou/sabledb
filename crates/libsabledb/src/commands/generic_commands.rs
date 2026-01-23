@@ -42,6 +42,9 @@ impl GenericCommands {
             ValkeyCommandName::Scan => {
                 Self::scan(client_state, command, &mut response_buffer).await?;
             }
+            ValkeyCommandName::Type => {
+                Self::type_cmd(client_state, command, &mut response_buffer).await?;
+            }
             _ => {
                 return Err(SableError::InvalidArgument(format!(
                     "Non generic command {}",
@@ -162,6 +165,40 @@ impl GenericCommands {
 
         let builder = RespBuilderV2::default();
         builder.number_usize(response_buffer, items_found);
+        Ok(())
+    }
+
+    /// Returns the string representation of the type of the value stored at key.
+    /// Returns: string, list, set, zset, hash, or none.
+    async fn type_cmd(
+        client_state: Rc<ClientState>,
+        command: Rc<ValkeyCommand>,
+        response_buffer: &mut BytesMut,
+    ) -> Result<(), SableError> {
+        check_args_count!(command, 2, response_buffer);
+
+        let key = command_arg_at!(command, 1);
+        let builder = RespBuilderV2::default();
+        let db_id = client_state.database_id();
+
+        let mut generic_db = GenericDb::with_storage(client_state.database(), db_id);
+
+        match generic_db.value_common_metadata(key)? {
+            Some(md) => {
+                let type_str = match md.value_type() {
+                    ValueType::Str => "string",
+                    ValueType::List => "list",
+                    ValueType::Hash => "hash",
+                    ValueType::Set => "set",
+                    ValueType::Zset => "zset",
+                    ValueType::Lock => "lock",
+                };
+                builder.bulk_string(response_buffer, type_str.as_bytes());
+            }
+            None => {
+                builder.bulk_string(response_buffer, b"none");
+            }
+        }
         Ok(())
     }
 
@@ -510,6 +547,25 @@ mod test {
         ("exists mykey1 mykey2 mykey1", ":3\r\n"),
         ("exists no_such_key mykey2 mykey1", ":2\r\n"),
     ]; "test_exists")]
+    #[test_case(vec![
+        // Test string type
+        ("set mystring hello", "+OK\r\n"),
+        ("type mystring", "$6\r\nstring\r\n"),
+        // Test list type
+        ("lpush mylist a b c", ":3\r\n"),
+        ("type mylist", "$4\r\nlist\r\n"),
+        // Test hash type
+        ("hset myhash field value", ":1\r\n"),
+        ("type myhash", "$4\r\nhash\r\n"),
+        // Test set type
+        ("sadd myset member", ":1\r\n"),
+        ("type myset", "$3\r\nset\r\n"),
+        // Test zset type
+        ("zadd myzset 1 member", ":1\r\n"),
+        ("type myzset", "$4\r\nzset\r\n"),
+        // Test non-existent key
+        ("type nonexistent", "$4\r\nnone\r\n"),
+    ]; "test_type")]
     #[test_case(vec![
         ("set mykey1 myvalue", "+OK\r\n"),
         ("expire mykey1 100", ":1\r\n"),

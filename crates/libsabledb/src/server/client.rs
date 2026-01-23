@@ -603,7 +603,8 @@ impl Client {
             | ValkeyCommandName::Exists
             | ValkeyCommandName::Expire
             | ValkeyCommandName::Keys
-            | ValkeyCommandName::Scan => {
+            | ValkeyCommandName::Scan
+            | ValkeyCommandName::Type => {
                 match GenericCommands::handle_command(client_state.clone(), command.clone(), tx)
                     .await?
                 {
