@@ -30,6 +30,8 @@ pub struct GeneralSettings {
     /// Log directory. If set to `None`, logs are written into `stdout`
     /// SableDB uses an hourly rotating logs
     pub logdir: Option<PathBuf>,
+    /// Prometheus metrics endpoint address (e.g. "127.0.0.1:9090"). If `None`, metrics are disabled.
+    pub metrics_address: Option<String>,
 }
 
 impl Default for GeneralSettings {
@@ -44,6 +46,7 @@ impl Default for GeneralSettings {
             private_address: "127.0.0.1:7379".to_string(),
             logdir: None,
             cluster_address: None,
+            metrics_address: None,
         }
     }
 }
@@ -147,6 +150,10 @@ pub struct CommandLineArgs {
     #[arg(short, long)]
     /// Server workers count. set to 0 to let SableDB decide which defaults to `(number of CPUs / 2)`
     pub workers: Option<usize>,
+
+    #[arg(long)]
+    /// Prometheus metrics endpoint address (e.g. 127.0.0.1:9090)
+    pub metrics_address: Option<String>,
 
     /// An optional shard name (this will override the value from the NODE configuration file)
     #[arg(long)]
@@ -268,6 +275,11 @@ impl CommandLineArgs {
             args.push("--slots".into());
             args.push(slots.into());
         }
+
+        if let Some(metrics_address) = &self.metrics_address {
+            args.push("--metrics-address".into());
+            args.push(metrics_address.into());
+        }
         args
     }
 
@@ -325,6 +337,14 @@ impl CommandLineArgs {
                 .expect("poisoned mutex")
                 .general_settings
                 .workers = *workers;
+        }
+
+        if let Some(metrics_address) = &self.metrics_address {
+            options
+                .write()
+                .expect("poisoned mutex")
+                .general_settings
+                .metrics_address = Some(metrics_address.to_string());
         }
     }
 
@@ -521,6 +541,13 @@ impl ServerOptions {
             "general",
             "key",
             &mut options.general_settings.key,
+        )?;
+
+        Self::read_string_opt(
+            &ini_file,
+            "general",
+            "metrics_address",
+            &mut options.general_settings.metrics_address,
         )?;
 
         // [replication_limits]

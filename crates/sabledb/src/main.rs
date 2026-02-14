@@ -1,7 +1,7 @@
 use clap::Parser;
 use libsabledb::{
-    utils::IpPort, CommandLineArgs, SableError, Server, ServerOptions, Transport, WorkerManager,
-    WorkerMessage,
+    utils::IpPort, CommandLineArgs, MetricsServer, SableError, Server, ServerOptions, Transport,
+    WorkerManager, WorkerMessage,
 };
 use std::net::TcpListener;
 use std::sync::{Arc, RwLock as StdRwLock};
@@ -126,6 +126,17 @@ fn main() -> Result<(), SableError> {
         "This node is member of shard: '{}'",
         server_state_clone.persistent_state().shard_name()
     );
+
+    // Start Prometheus metrics endpoint if configured
+    if let Some(metrics_address) = &options
+        .read()
+        .expect(OPTIONS_LOCK_ERR)
+        .general_settings
+        .metrics_address
+    {
+        let telemetry = Server::state().shared_telemetry();
+        MetricsServer::run(metrics_address.clone(), telemetry)?;
+    }
 
     // Notify the replicator thread to start
     server_state_clone.notify_replicator_init_done_sync()?;

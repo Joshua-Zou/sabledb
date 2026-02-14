@@ -339,6 +339,79 @@ impl Telemetry {
     }
 }
 
+impl Telemetry {
+    /// Format telemetry data as Prometheus exposition format text
+    pub fn to_prometheus(&self) -> String {
+        let current_connections = self
+            .connections_opened
+            .saturating_sub(self.connections_closed);
+        let total_keys = STORAGE_MD.read().expect("read lock").total_key_count();
+        let db_count = STORAGE_MD.read().expect("read lock").db_count();
+
+        let mut out = String::with_capacity(2048);
+
+        // Connections
+        out.push_str("# HELP sabledb_connections_current Current number of open client connections.\n");
+        out.push_str("# TYPE sabledb_connections_current gauge\n");
+        out.push_str(&format!("sabledb_connections_current {}\n", current_connections));
+
+        out.push_str("# HELP sabledb_connections_opened_total Total connections opened since server start.\n");
+        out.push_str("# TYPE sabledb_connections_opened_total counter\n");
+        out.push_str(&format!("sabledb_connections_opened_total {}\n", self.connections_opened));
+
+        out.push_str("# HELP sabledb_connections_closed_total Total connections closed since server start.\n");
+        out.push_str("# TYPE sabledb_connections_closed_total counter\n");
+        out.push_str(&format!("sabledb_connections_closed_total {}\n", self.connections_closed));
+
+        // Commands
+        out.push_str("# HELP sabledb_commands_processed_total Total number of commands processed.\n");
+        out.push_str("# TYPE sabledb_commands_processed_total counter\n");
+        out.push_str(&format!("sabledb_commands_processed_total {}\n", self.total_commands_processed));
+
+        // Network
+        out.push_str("# HELP sabledb_net_bytes_read_total Total bytes read from the network.\n");
+        out.push_str("# TYPE sabledb_net_bytes_read_total counter\n");
+        out.push_str(&format!("sabledb_net_bytes_read_total {}\n", self.net_bytes_read));
+
+        out.push_str("# HELP sabledb_net_bytes_written_total Total bytes written to the network.\n");
+        out.push_str("# TYPE sabledb_net_bytes_written_total counter\n");
+        out.push_str(&format!("sabledb_net_bytes_written_total {}\n", self.net_bytes_written));
+
+        // Disk I/O
+        out.push_str("# HELP sabledb_io_read_calls_total Total disk I/O read calls.\n");
+        out.push_str("# TYPE sabledb_io_read_calls_total counter\n");
+        out.push_str(&format!("sabledb_io_read_calls_total {}\n", self.total_io_read_calls));
+
+        out.push_str("# HELP sabledb_io_write_calls_total Total disk I/O write calls.\n");
+        out.push_str("# TYPE sabledb_io_write_calls_total counter\n");
+        out.push_str(&format!("sabledb_io_write_calls_total {}\n", self.total_io_write_calls));
+
+        out.push_str("# HELP sabledb_io_duration_microseconds_total Total microseconds spent in disk I/O.\n");
+        out.push_str("# TYPE sabledb_io_duration_microseconds_total counter\n");
+        out.push_str(&format!("sabledb_io_duration_microseconds_total {}\n", self.total_io_duration));
+
+        // Cache stats
+        out.push_str("# HELP sabledb_db_hits_total Total database cache hits.\n");
+        out.push_str("# TYPE sabledb_db_hits_total counter\n");
+        out.push_str(&format!("sabledb_db_hits_total {}\n", self.db_hit));
+
+        out.push_str("# HELP sabledb_db_misses_total Total database cache misses.\n");
+        out.push_str("# TYPE sabledb_db_misses_total counter\n");
+        out.push_str(&format!("sabledb_db_misses_total {}\n", self.db_miss));
+
+        // Keyspace
+        out.push_str("# HELP sabledb_keys_total Total number of keys across all databases.\n");
+        out.push_str("# TYPE sabledb_keys_total gauge\n");
+        out.push_str(&format!("sabledb_keys_total {}\n", total_keys));
+
+        out.push_str("# HELP sabledb_databases Number of databases with at least one key.\n");
+        out.push_str("# TYPE sabledb_databases gauge\n");
+        out.push_str(&format!("sabledb_databases {}\n", db_count));
+
+        out
+    }
+}
+
 impl std::fmt::Display for Telemetry {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut total_connections = self.connections_opened;
