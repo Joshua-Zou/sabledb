@@ -8,7 +8,7 @@ use crate::{
     SableError, Server, ServerOptions, SimpleBackoff, StorageAdapter, ValkeyCommand,
 };
 use num_format::{Locale, ToFormattedString};
-use rand::{Rng, RngExt};
+use rand::Rng;
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::str::FromStr;
