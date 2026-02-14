@@ -1,6 +1,6 @@
 use crate::{Client, SableError, ServerState, StorageAdapter, Telemetry, TimeUtils, WorkerHandle};
 use num_format::{Locale, ToFormattedString};
-use rand::Rng;
+use rand::{Rng, RngExt};
 use std::net::TcpStream;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicU64, Ordering};

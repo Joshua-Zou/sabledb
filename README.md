@@ -32,6 +32,8 @@ cargo test --release
 ```bash
 # RocksDB requires clang
 sudo apt install -y clang
+# Requires openssl sdks
+sudo apt install libssl-dev pkg-config
 
 git clone https://github.com/sabledb-io/sabledb.git
 cd sabledb
